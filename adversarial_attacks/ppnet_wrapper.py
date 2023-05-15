@@ -12,6 +12,7 @@ class PPNetAdversarialWrapper(nn.Module):
     def __init__(
             self,
             model: nn.Module,
+            model_name: str,
             img: torch.Tensor,
             proto_nums: np.ndarray,
             mask: torch.Tensor,
@@ -24,6 +25,7 @@ class PPNetAdversarialWrapper(nn.Module):
         """
         super(PPNetAdversarialWrapper, self).__init__()
         self.model = model
+        self.model_name = model_name
         self.proto_nums = proto_nums
         self.mask = mask
 
@@ -40,9 +42,18 @@ class PPNetAdversarialWrapper(nn.Module):
         # 'x2' is the actual output image. We use masking to ensure that cleverhans can affect only the masked pixels.
         x2 = x * self.mask + self.img * (1 - self.mask)
 
-        conv_output, distances = self.model.push_forward(x2)
+        if self.model_name == 'prototree':
+            conv_output, distances, _ = self.model.forward_partial(x2)
+        else:
+            conv_output, distances = self.model.push_forward(x2)
         distances = distances[:, self.proto_nums]
-        activations = self.model.distance_2_similarity(distances).flatten(start_dim=2)
+        if self.model_name == 'tesnet':
+            activations = -distances
+        elif self.model_name == 'prototree':
+            activations = torch.exp(-distances)
+        else:
+            activations = self.model.distance_2_similarity(distances)
+        activations = activations.flatten(start_dim=2)
         activations, _ = torch.max(activations, dim=-1)
         if self.initial_activation is None:
             self.initial_activation = activations[0].clone().cpu().detach().numpy()

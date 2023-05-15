@@ -14,10 +14,14 @@ normalize = transforms.Normalize(mean=mean, std=std)
 
 def run_model_on_batch(
         model: torch.nn.Module,
+        model_name: str,
         batch: torch.Tensor,
         proto_pool: bool = False
 ):
-    _, distances = model.push_forward(batch)
+    if model_name in ('ppnet', 'protopool', 'tesnet'):
+        _, distances = model.push_forward(batch)
+    elif model_name == 'prototree':
+        _, distances, _ = model.forward_partial(batch)
 
     if proto_pool:
         # global min pooling
@@ -42,21 +46,32 @@ def run_model_on_batch(
             prototype_activations = x.flatten(start_dim=1)
         else:
             raise NotImplementedError('Not implemented for proto_pool')
-    else:
+        patch_activations = model.distance_2_similarity(distances).cpu().detach().numpy()
+        predictions = model.last_layer(prototype_activations)
+    elif model_name == 'ppnet':
         min_distances = -nn.functional.max_pool2d(-distances,
                                                   kernel_size=(distances.size()[2],
                                                                distances.size()[3]))
         min_distances = min_distances.view(-1, model.num_prototypes)
         prototype_activations = model.distance_2_similarity(min_distances)
+        patch_activations = model.distance_2_similarity(distances).cpu().detach().numpy()
+        predictions = model.last_layer(prototype_activations)
+    elif model_name == 'tesnet':
+        patch_activations = (-distances).cpu().detach().numpy()
+        prototype_activations = model.global_max_pooling(-distances)
+        predictions = model.last_layer(prototype_activations)
+    elif model_name == 'prototree':
+        patch_activations = torch.exp(-distances).cpu().detach().numpy()
+        predictions, _ = model.forward(batch)
 
-    patch_activations = model.distance_2_similarity(distances).cpu().detach().numpy()
-    predicted_cls = torch.argmax(model.last_layer(prototype_activations), dim=-1)
+    predicted_cls = torch.argmax(predictions, dim=-1)
 
     return predicted_cls.cpu().detach().numpy(), patch_activations
 
 
 def run_model_on_dataset(
         model: nn.Module,
+        model_name: str,
         dataset: Dataset,
         num_workers: int,
         batch_size: int,
@@ -89,7 +104,7 @@ def run_model_on_dataset(
         batch_filenames = [os.path.basename(s[0]) for s in batch_samples]
         with torch.no_grad():
             predicted_cls, patch_activations = run_model_on_batch(
-                model=model, batch=img_tensor, proto_pool=proto_pool
+                model=model, batch=img_tensor, proto_pool=proto_pool, model_name=model_name
             )
             current_idx += img_tensor.shape[0]
 

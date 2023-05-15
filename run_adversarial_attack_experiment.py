@@ -153,9 +153,9 @@ def run_adversarial_attack_on_prototypes(args):
         test_dataset = subset_test_dataset
 
     metrics_mean, metrics_all = {}, {}
-    for ch_path, model_key, is_proto_pool in zip(args.model_checkpoints, args.model_keys, args.proto_pool):
-        proto_pool_arch = 'resnet50' if is_proto_pool == '2' else 'resnet34'
-        is_proto_pool = is_proto_pool == '1' or is_proto_pool == '2'
+    for ch_path, model_key, model_name, proto_pool_arch in zip(args.model_checkpoints, args.model_keys, args.model_names, args.proto_pool_arch):
+        proto_pool_arch = 'resnet50' if proto_pool_arch == '2' else 'resnet34'
+        is_proto_pool = model_name == 'proto_pool'
 
         print(f'Loading model {model_key} from {ch_path}...')
         if is_proto_pool:
@@ -178,7 +178,10 @@ def run_adversarial_attack_on_prototypes(args):
                 model = model.cuda()
             else:
                 model.load_state_dict(torch.load(ch_path, map_location=torch.device('cpu'))['model_state_dict'])
-        else:
+        elif model_name in ('ppnet', 'tesnet', 'prototree'):
+            if model_name in ('tesnet', 'prototree'):
+                import sys
+                sys.path.insert(0, os.path.join(os.curdir, model_name))
             if torch.cuda.is_available():
                 model = torch.load(ch_path).cuda()
             else:
@@ -204,9 +207,11 @@ def run_adversarial_attack_on_prototypes(args):
                 num_workers=args.n_jobs,
                 batch_size=args.batch_size,
                 proto_pool=is_proto_pool,
+                model_name=model_name,
         ):
             adversarial_result = attack_images_target_class_prototypes(
                 model=model,
+                model_name=model_name,
                 img=batch_result['img_tensor'],
                 activations=batch_result['patch_activations'],
                 attack_type=args.attack_type,
@@ -221,7 +226,7 @@ def run_adversarial_attack_on_prototypes(args):
 
             with torch.no_grad():
                 predicted_cls_adv, patch_activations_adv = run_model_on_batch(
-                    model=model, batch=adversarial_result['img_modified_tensor'], proto_pool=is_proto_pool
+                    model=model, batch=adversarial_result['img_modified_tensor'], proto_pool=is_proto_pool, model_name=model_name,
                 )
 
             n_correct_after += np.sum(predicted_cls_adv == batch_result['target'])
@@ -361,6 +366,7 @@ if __name__ == '__main__':
     parser.add_argument('model_checkpoints', nargs='+', type=str,
                         help='Paths to the checkpoints (.pth files) of the evaluated models')
     parser.add_argument('--model_keys', nargs='+', type=str, help='Names for the models to display in plot titles')
+    parser.add_argument('--model_names', nargs='+', type=str, help='Names of the models')
     parser.add_argument('--proto_pool', nargs='+', type=str,
                         help='Whether the models are ProtoPool. '
                              '"1" for ProtoPool with resnet 34, "2" for ProtoPool '
@@ -384,7 +390,7 @@ if __name__ == '__main__':
                         help='Maximum perturbation of the adversarial attack')
     parser.add_argument('--epsilon_iter', type=float, default=0.01,
                         help='Maximum perturbation of the adversarial attack within one iteration')
-    parser.add_argument('--nb_iter', type=iter, default=40,
+    parser.add_argument('--nb_iter', type=int, default=40,
                         help='Number of iterations of the adversarial attack')
 
     run_adversarial_attack_on_prototypes(parser.parse_args())

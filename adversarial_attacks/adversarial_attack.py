@@ -45,6 +45,7 @@ def get_all_class_proto_low_activation_bbox_mask(
 
 def attack_images_target_class_prototypes(
         model: nn.Module,
+        model_name: str,
         img: torch.tensor,
         activations: np.ndarray,
         attack_type: str,
@@ -66,8 +67,11 @@ def attack_images_target_class_prototypes(
     :param nb_iter: number of iterations of the adversarial attack
     :return: a dictionary contained the modified images and the mask of the region of the attack
     """
-    proto_cls_identity = model.prototype_class_identity.cpu().detach().numpy()
-    cls_proto_nums = [np.argwhere(proto_cls_identity[:, c] == 1).flatten() for c in cls]
+    if hasattr(model, 'prototype_class_identity'):
+        proto_cls_identity = model.prototype_class_identity.cpu().detach().numpy()
+        cls_proto_nums = [np.argwhere(proto_cls_identity[:, c] == 1).flatten() for c in cls]
+    else:
+        cls_proto_nums = np.array([[]] * activations.shape[0])
     if attack_type == 'gt_protos':
         proto_nums = cls_proto_nums
     elif attack_type == 'top_proto':
@@ -90,7 +94,7 @@ def attack_images_target_class_prototypes(
         sample_img = img[sample_i].unsqueeze(0)
         sample_proto_nums = proto_nums[sample_i]
         sample_mask = mask[sample_i].unsqueeze(0)
-        wrapper = PPNetAdversarialWrapper(model=model, img=sample_img, proto_nums=sample_proto_nums, mask=sample_mask)
+        wrapper = PPNetAdversarialWrapper(model=model, model_name=model_name, img=sample_img, proto_nums=sample_proto_nums, mask=sample_mask)
 
         sample_modified = projected_gradient_descent(
             model_fn=wrapper,
