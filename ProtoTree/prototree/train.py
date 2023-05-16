@@ -98,12 +98,10 @@ def train_epoch(tree: ProtoTree,
         else:
             loss = F.nll_loss(torch.log(ys_pred), ys)
 
-        with torch.no_grad():
-            _, distances, _ = tree.forward_partial(xs)
-            all_similarities = torch.exp(-distances)
-
         if args.high_act_loss:
             with torch.no_grad():
+                _, distances, _ = tree.forward_partial(xs)
+                all_similarities = torch.exp(-distances)
                 proto_sim = []
                 proto_nums = []
                 for sample_i, sample_label in enumerate(ys):
