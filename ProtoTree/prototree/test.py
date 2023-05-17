@@ -44,7 +44,7 @@ def eval(tree: ProtoTree,
         xs, ys = xs.to(device), ys.to(device)
 
         # Use the model to classify this batch of input data
-        out, test_info = tree.forward(xs, sampling_strategy)
+        out, test_info, _ = tree.forward(xs, sampling_strategy)
         ys_pred = torch.argmax(out, dim=1)
 
         # Update the confusion matrix
@@ -96,13 +96,13 @@ def eval_fidelity(tree: ProtoTree,
         xs, ys = xs.to(device), ys.to(device)
 
         # Use the model to classify this batch of input data, with 3 types of routing
-        out_distr, _ = tree.forward(xs, 'distributed')
+        out_distr, _, _ = tree.forward(xs, 'distributed')
         ys_pred_distr = torch.argmax(out_distr, dim=1)
 
-        out_samplemax, _ = tree.forward(xs, 'sample_max')
+        out_samplemax, _, _ = tree.forward(xs, 'sample_max')
         ys_pred_samplemax = torch.argmax(out_samplemax, dim=1)
 
-        out_greedy, _ = tree.forward(xs, 'greedy')
+        out_greedy, _, _ = tree.forward(xs, 'greedy')
         ys_pred_greedy = torch.argmax(out_greedy, dim=1)
         
         # Calculate fidelity
@@ -146,7 +146,7 @@ def eval_ensemble(trees: list, test_loader: DataLoader, device, log: Log, args: 
             tree.eval()
             tree = tree.to(device)
             # Use the model to classify this batch of input data
-            out, _ = tree.forward(xs, sampling_strategy)
+            out, _, _ = tree.forward(xs, sampling_strategy)
             outs.append(out)
             del out
         stacked = torch.stack(outs, dim=0)

@@ -21,7 +21,7 @@ def run_model_on_batch(
     if model_name in ('ppnet', 'protopool', 'tesnet'):
         _, distances = model.push_forward(batch)
     elif model_name == 'prototree':
-        _, distances, _ = model.forward_partial(batch)
+        predictions, _, distances = model.forward(batch)
 
     if proto_pool:
         # global min pooling
@@ -62,7 +62,6 @@ def run_model_on_batch(
         predictions = model.last_layer(prototype_activations)
     elif model_name == 'prototree':
         patch_activations = torch.exp(-distances).cpu().detach().numpy()
-        predictions, _ = model.forward(batch)
 
     predicted_cls = torch.argmax(predictions, dim=-1)
 

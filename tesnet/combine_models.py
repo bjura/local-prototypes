@@ -120,7 +120,7 @@ def _train_or_test_ppnet_ensemble(model, dataloader, optimizer=None, class_speci
         with grad_req:
             # nn.Module has implemented __call__() function
             # so no need to call .forward
-            output, _ = model(input)
+            output, _, _ = model(input)
 
             # compute loss
             cross_entropy = torch.nn.functional.cross_entropy(output, target)

@@ -136,7 +136,19 @@ def get_args() -> argparse.Namespace:
     parser.add_argument('--nr_trees_ensemble',
                         type=int,
                         default=5,
-                        help='Number of ProtoTrees to train and (optionally) use in an ensemble. Used in main_ensemble.py') 
+                        help='Number of ProtoTrees to train and (optionally) use in an ensemble. Used in main_ensemble.py')
+    parser.add_argument('--high_act_loss',
+                        action='store_true')
+    parser.add_argument('--quantized_mask',
+                        action='store_true')
+    parser.add_argument('--sim_diff_weight',
+                        default=1.0,
+                        type=float)
+    parser.add_argument('--sim_diff_function',
+                        default='l2',
+                        type=str)
+    parser.add_argument('--augmentations',
+                        action='store_true')
     args = parser.parse_args()
     args.milestones = get_milestones(args)
     return args

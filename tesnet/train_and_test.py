@@ -69,7 +69,7 @@ def _train_or_test(model, dataloader, args, optimizer=None, class_specific=True,
         with grad_req:
             # nn.Module has implemented __call__() function
             # so no need to call .forward
-            output, min_distances = model(input)
+            output, min_distances, distances = model(input)
 
             # compute loss
             cross_entropy = torch.nn.functional.cross_entropy(output, target)
@@ -133,7 +133,6 @@ def _train_or_test(model, dataloader, args, optimizer=None, class_specific=True,
 
                 if args.high_act_loss:
                     with torch.no_grad():
-                        _, distances = model.push_forward(input)
                         all_similarities = -distances
                         proto_sim = []
                         proto_nums = []

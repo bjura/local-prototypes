@@ -88,7 +88,7 @@ def train_epoch(tree: ProtoTree,
                             left:left + width]
 
         # Perform a forward pass through the network
-        ys_pred, info = tree.forward(xs)
+        ys_pred, info, distances = tree.forward(xs)
 
         # Learn prototypes and network with gradient descent.
         # If disable_derivative_free_leaf_optim, leaves are optimized with gradient descent as well.
@@ -100,7 +100,6 @@ def train_epoch(tree: ProtoTree,
 
         if args.high_act_loss:
             with torch.no_grad():
-                _, distances, _ = tree.forward_partial(xs)
                 all_similarities = torch.exp(-distances)
                 proto_sim = []
                 proto_nums = []
@@ -255,7 +254,7 @@ def train_epoch_kontschieder(tree: ProtoTree,
         # Reset the gradients
         optimizer.zero_grad()
         # Perform a forward pass through the network
-        ys_pred, _ = tree.forward(xs)
+        ys_pred, _, _ = tree.forward(xs)
         # Compute the loss
         if tree._log_probabilities:
             loss = F.nll_loss(ys_pred, ys)
@@ -321,7 +320,7 @@ def train_leaves_epoch(tree: ProtoTree,
         for i, (xs, ys) in train_iter:
             xs, ys = xs.to(device), ys.to(device)
             #Train leafs without gradient descent
-            out, info = tree.forward(xs)
+            out, info, _ = tree.forward(xs)
             target = eye[ys] #shape (batchsize, num_classes) 
             for leaf in tree.leaves:  
                 if tree._log_probabilities:

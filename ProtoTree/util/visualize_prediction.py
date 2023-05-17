@@ -114,7 +114,7 @@ def gen_pred_vis(tree: ProtoTree,
 
     # Get the model prediction
     with torch.no_grad():
-        pred, pred_info = tree.forward(sample, sampling_strategy='greedy', **pred_kwargs)
+        pred, pred_info, _ = tree.forward(sample, sampling_strategy='greedy', **pred_kwargs)
         probs = pred_info['ps']
         label_ix = torch.argmax(pred, dim=1)[0].item()
         assert 'out_leaf_ix' in pred_info.keys()

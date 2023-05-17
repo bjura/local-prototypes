@@ -168,7 +168,7 @@ class TESNet(nn.Module):
         project_max_distances = self.global_max_pooling(project_distances)
         prototype_activations = project_max_distances
         logits = self.last_layer(prototype_activations)
-        return logits, cosine_min_distances
+        return logits, cosine_min_distances, -project_distances
 
     def push_forward(self, x):
 
