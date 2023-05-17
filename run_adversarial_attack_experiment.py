@@ -110,9 +110,13 @@ def get_activation_change_metrics(act_before, act_after, proto_nums, cls_proto_n
     quantile_after = torch.quantile(proto_act_after.flatten(), q=0.9, dim=-1)
     high_act_after = proto_act_after > quantile_after
 
-    iou = torch.sum(high_act_after & high_act_before) / torch.sum(high_act_after | high_act_before)
-    iou = float(iou.item())
-    metrics['iou'] = iou
+    if torch.sum(high_act_after | high_act_before).item() != 0:
+        iou = torch.sum(high_act_after & high_act_before) / torch.sum(high_act_after | high_act_before)
+        iou = float(iou.item())
+        metrics['iou'] = iou
+    else:
+        metrics['iou'] = 1.0
+
 
     if len(proto_nums) > 1:
         # same metric as above but for all the prototypes of the target class
@@ -148,9 +152,13 @@ def run_adversarial_attack_on_prototypes(args):
         ]))
     if args.n_samples != -1:
         random_idx = np.random.choice(np.arange(len(test_dataset)), replace=False, size=args.n_samples)
-        subset_test_dataset = Subset(test_dataset, random_idx)
-        setattr(subset_test_dataset, 'samples', [test_dataset.samples[i] for i in random_idx])
-        test_dataset = subset_test_dataset
+    else:
+        random_idx = np.random.choice(np.arange(len(test_dataset)), replace=False, size=len(test_dataset))
+
+    subset_test_dataset = Subset(test_dataset, random_idx)
+    setattr(subset_test_dataset, 'samples', [test_dataset.samples[i] for i in random_idx])
+    test_dataset = subset_test_dataset
+
 
     metrics_mean, metrics_all = {}, {}
     for ch_path, model_key, model_name, proto_pool_arch in zip(args.model_checkpoints, args.model_keys, args.model_names, args.proto_pool_arch):
