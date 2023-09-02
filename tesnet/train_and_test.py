@@ -132,8 +132,8 @@ def _train_or_test(model, dataloader, args, optimizer=None, class_specific=True,
                     l1 = model.module.last_layer.weight.norm(p=1)
 
                 if args.high_act_loss:
+                    all_similarities = -distances
                     with torch.no_grad():
-                        all_similarities = -distances
                         proto_sim = []
                         proto_nums = []
                         for sample_i, sample_label in enumerate(target):
@@ -168,9 +168,9 @@ def _train_or_test(model, dataloader, args, optimizer=None, class_specific=True,
                                                                             size=(input.shape[-1], input.shape[-1]),
                                                                             mode='bilinear')
                     new_input = input * high_act_mask_img
-                    with torch.no_grad():
-                        _, distances2 = model.push_forward(new_input.detach())
-                        all_similarities2 = -distances2
+                    _, distances2 = model.module.push_forward(new_input.detach())
+                    all_similarities2 = -distances2
+
                     proto_sim2 = []
                     for sample_i, sample_label in enumerate(target):
                         proto_sim2.append(all_similarities2[sample_i, proto_nums[sample_i]])
@@ -190,7 +190,6 @@ def _train_or_test(model, dataloader, args, optimizer=None, class_specific=True,
                 else:
                     sim_diff_loss = None
                 del input
-                
             else:
                 cluster_cost = torch.Tensor([0])
                 separation_cost = torch.Tensor([0])
@@ -287,10 +286,10 @@ def train(model, dataloader, optimizer, args, class_specific=False, coefs=None, 
                           class_specific=class_specific, coefs=coefs, log=log)
 
 
-def test(model, dataloader, class_specific=False, log=print):
+def test(model, dataloader, args, class_specific=False, log=print):
     log('\ttest')
     model.eval()
-    return _train_or_test(model=model, dataloader=dataloader, optimizer=None,
+    return _train_or_test(model=model, dataloader=dataloader, args=args, optimizer=None,
                           class_specific=class_specific, log=log)
 
 

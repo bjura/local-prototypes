@@ -109,7 +109,7 @@ for model_dir,model_name in zip(model_dir_list,model_name_list):
             num_workers=4, pin_memory=False)
         log('test set size: {0}'.format(len(test_loader.dataset)))
 
-        accu = tnt.test(model=ppnet_multi, dataloader=test_loader,
+        accu = tnt.test(model=ppnet_multi, dataloader=test_loader, args=args,
                         class_specific=class_specific, log=print)
 
     ##### SANITY CHECK

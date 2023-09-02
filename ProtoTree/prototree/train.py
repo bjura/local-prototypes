@@ -99,14 +99,15 @@ def train_epoch(tree: ProtoTree,
             loss = F.nll_loss(torch.log(ys_pred), ys)
 
         if args.high_act_loss:
+            all_similarities = torch.exp(-distances)
             with torch.no_grad():
-                all_similarities = torch.exp(-distances)
                 proto_sim = []
                 proto_nums = []
-                for sample_i, sample_label in enumerate(ys):
-                    proto_num = np.random.randint(0, tree.num_prototypes)
+                for sample_sim in all_similarities:
+                    proto_max_act, _ = torch.max(sample_sim.reshape(sample_sim.shape[0], -1), axis=-1)
+                    proto_num = torch.argmax(proto_max_act)
                     proto_nums.append(proto_num)
-                    proto_sim.append(all_similarities[sample_i, proto_num])
+                    proto_sim.append(sample_sim[proto_num])
                 proto_sim = torch.stack(proto_sim, dim=0).unsqueeze(1)
 
             if args.quantized_mask:
@@ -134,10 +135,8 @@ def train_epoch(tree: ProtoTree,
                                                                     size=(xs.shape[-1], xs.shape[-1]),
                                                                     mode='bilinear')
             new_data = xs * high_act_mask_img
-
-            with torch.no_grad():
-                _, distances2, _ = tree.forward_partial(new_data.detach())
-                all_similarities2 = torch.exp(-distances2)
+            _, distances2, _ = tree.forward_partial(new_data.detach())
+            all_similarities2 = torch.exp(-distances2)
 
             proto_sim2 = []
             for sample_i, sample_label in enumerate(ys):

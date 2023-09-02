@@ -187,9 +187,12 @@ def run_adversarial_attack_on_prototypes(args):
             else:
                 model.load_state_dict(torch.load(ch_path, map_location=torch.device('cpu'))['model_state_dict'])
         elif model_name in ('ppnet', 'tesnet', 'prototree'):
-            if model_name in ('tesnet', 'prototree'):
+            if model_name in ('tesnet'):
                 import sys
                 sys.path.insert(0, os.path.join(os.curdir, model_name))
+            elif model_name == 'prototree':
+                import sys
+                sys.path.insert(0, os.path.join(os.curdir, 'ProtoTree'))
             if torch.cuda.is_available():
                 model = torch.load(ch_path).cuda()
             else:
@@ -344,6 +347,7 @@ def run_adversarial_attack_on_prototypes(args):
 
         metrics_mean[model_key] = mean_metrics
         metrics_all[model_key] = metrics
+        del model
 
     metrics_df = defaultdict(list)
     for model_key, metrics in metrics_mean.items():
@@ -375,7 +379,7 @@ if __name__ == '__main__':
                         help='Paths to the checkpoints (.pth files) of the evaluated models')
     parser.add_argument('--model_keys', nargs='+', type=str, help='Names for the models to display in plot titles')
     parser.add_argument('--model_names', nargs='+', type=str, help='Names of the models')
-    parser.add_argument('--proto_pool', nargs='+', type=str,
+    parser.add_argument('--proto_pool_arch', nargs='+', type=str,
                         help='Whether the models are ProtoPool. '
                              '"1" for ProtoPool with resnet 34, "2" for ProtoPool '
                              'with resnet50 and iNaturalist pretraining, otherwise ProtoPNet')

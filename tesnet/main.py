@@ -200,11 +200,12 @@ for epoch in range(num_train_epochs):
                       class_specific=class_specific, coefs=coefs, log=log)
 
     #test
-    accu,test_results = tnt.test(model=ppnet_multi, dataloader=test_loader,
+    accu,test_results = tnt.test(model=ppnet_multi, dataloader=test_loader, args=args,
                     class_specific=class_specific, log=log)
 
     save.save_model_w_condition(model=ppnet, model_dir=model_dir, model_name=str(epoch) + 'nopush', accu=accu,
                                 target_accu=0.70, log=log)
+    
     #stage2: Embedding space transparency
     if epoch >= push_start and epoch in push_epochs:
         push.push_prototypes(
@@ -220,7 +221,7 @@ for epoch in range(num_train_epochs):
             proto_bound_boxes_filename_prefix=proto_bound_boxes_filename_prefix,
             save_prototype_class_identity=True,
             log=log)
-        accu,test_results = tnt.test(model=ppnet_multi, dataloader=test_loader,
+        accu,test_results = tnt.test(model=ppnet_multi, dataloader=test_loader, args=args,
                         class_specific=class_specific, log=log)
         save.save_model_w_condition(model=ppnet, model_dir=model_dir, model_name=str(epoch) + 'push', accu=accu,
                                     target_accu=0.70, log=log)
@@ -229,13 +230,13 @@ for epoch in range(num_train_epochs):
             tnt.last_only(model=ppnet_multi, log=log)
             for i in range(20):
                 log('iteration: \t{0}'.format(i))
-                _,train_results= tnt.train(model=ppnet_multi, dataloader=train_loader, optimizer=last_layer_optimizer,
+                _,train_results= tnt.train(model=ppnet_multi, dataloader=train_loader, optimizer=last_layer_optimizer, args=args,
                               class_specific=class_specific, coefs=coefs, log=log)
 
-                accu,test_results = tnt.test(model=ppnet_multi, dataloader=test_loader,
+                accu,test_results = tnt.test(model=ppnet_multi, dataloader=test_loader, args=args,
                                 class_specific=class_specific, log=log)
-                save.save_model_w_condition(model=ppnet, model_dir=model_dir, model_name=str(epoch) + '_' + str(i) + 'push', accu=accu,
-                                            target_accu=0.70, log=log)
+                # save.save_model_w_condition(model=ppnet, model_dir=model_dir, model_name=str(epoch) + '_' + str(i) + 'push', accu=accu,
+                #                             target_accu=0.70, log=log)
    
 logclose()
 
