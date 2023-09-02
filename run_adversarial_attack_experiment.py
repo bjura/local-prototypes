@@ -66,21 +66,21 @@ def get_activation_change_metrics(act_before, act_after, proto_nums, cls_proto_n
     top_proto_act_before, top_proto_act_after = float(max_activations_before[argmax_act]), \
         float(max_activations_after[argmax_act])
 
-    metrics['top_proto_act_before'] = top_proto_act_before
-    metrics['top_proto_act_after'] = top_proto_act_after
-    metrics['top_proto_act_diff'] = top_proto_act_after - top_proto_act_before
-    metrics['top_proto_act_diff_percent'] = top_proto_act_after / top_proto_act_before * 100
+    # metrics['top_proto_act_before'] = top_proto_act_before
+    # metrics['top_proto_act_after'] = top_proto_act_after
+    # metrics['top_proto_act_diff'] = top_proto_act_after - top_proto_act_before
+    metrics['PAC'] = (1 - top_proto_act_after / top_proto_act_before) * 100
 
     # as a metric, calculate relative change of "place" in argsort over all prototypes, of the top activated prototype
     max_activations_before = np.max(act_before.reshape(act_before.shape[0], -1), axis=-1)
     max_activations_after = np.max(act_after.reshape(act_after.shape[0], -1), axis=-1)
 
-    argmax_place_before = float(np.sum(max_activations_before > max_activations_before[proto_nums[argmax_act]]))
-    argmax_place_after = float(np.sum(max_activations_after > max_activations_after[proto_nums[argmax_act]]))
+    # argmax_place_before = float(np.sum(max_activations_before > max_activations_before[proto_nums[argmax_act]]))
+    # argmax_place_after = float(np.sum(max_activations_after > max_activations_after[proto_nums[argmax_act]]))
 
-    metrics['top_proto_place_before'] = argmax_place_before
-    metrics['top_proto_place_after'] = argmax_place_after
-    metrics['top_proto_place_diff'] = argmax_place_after - argmax_place_before
+    # metrics['top_proto_place_before'] = argmax_place_before
+    # metrics['top_proto_place_after'] = argmax_place_after
+    # metrics['top_proto_place_diff'] = argmax_place_after - argmax_place_before
 
     cls_proto_nums = set(cls_proto_nums)
     non_cls_proto_nums = np.asarray([i for i in range(act_before.shape[0]) if i not in cls_proto_nums])
@@ -88,9 +88,10 @@ def get_activation_change_metrics(act_before, act_after, proto_nums, cls_proto_n
                                        max_activations_before[proto_nums[argmax_act]]))
     argmax_place_after = float(np.sum(max_activations_after[non_cls_proto_nums] >
                                       max_activations_after[proto_nums[argmax_act]]))
-    metrics['non_cls_protos_higher_than_top_proto_before'] = argmax_place_before
-    metrics['non_cls_protos_higher_than_top_proto_after'] = argmax_place_after
-    metrics['non_cls_protos_higher_than_top_proto_diff'] = argmax_place_after - argmax_place_before
+    # metrics['non_cls_protos_higher_than_top_proto_before'] = argmax_place_before
+    # metrics['non_cls_protos_higher_than_top_proto_after'] = argmax_place_after
+    # metrics['non_cls_protos_higher_than_top_proto_diff'] = argmax_place_after - argmax_place_before
+    metrics['PRC'] = argmax_place_after - argmax_place_before
 
     # get mIOU of high activated region before anda after the modification
     protos_act_before = act_before[proto_nums[argmax_act]]
@@ -113,28 +114,27 @@ def get_activation_change_metrics(act_before, act_after, proto_nums, cls_proto_n
     if torch.sum(high_act_after | high_act_before).item() != 0:
         iou = torch.sum(high_act_after & high_act_before) / torch.sum(high_act_after | high_act_before)
         iou = float(iou.item())
-        metrics['iou'] = iou
+        metrics['PLC'] = 100*(1-iou)
     else:
-        metrics['iou'] = 1.0
+        metrics['PLC'] = 0.0
 
-
-    if len(proto_nums) > 1:
+    # if len(proto_nums) > 1:
         # same metric as above but for all the prototypes of the target class
-        places_before, places_after, acts_before, acts_after = [], [], [], []
-        for proto_num in proto_nums:
-            places_before.append(float(np.sum(max_activations_before > max_activations_before[proto_num])))
-            places_after.append(float(np.sum(max_activations_after > max_activations_after[proto_num])))
+        # places_before, places_after, acts_before, acts_after = [], [], [], []
+        # for proto_num in proto_nums:
+            # places_before.append(float(np.sum(max_activations_before > max_activations_before[proto_num])))
+            # places_after.append(float(np.sum(max_activations_after > max_activations_after[proto_num])))
 
-            acts_before.append(float(max_activations_before[proto_num]))
-            acts_after.append(float(max_activations_after[proto_num]))
+            # acts_before.append(float(max_activations_before[proto_num]))
+            # acts_after.append(float(max_activations_after[proto_num]))
 
-        metrics['proto_place_before'] = places_before
-        metrics['proto_place_after'] = places_after
-        metrics['proto_place_diff'] = [p1 - p2 for p1, p2 in zip(places_after, places_before)]
+        # metrics['proto_place_before'] = places_before
+        # metrics['proto_place_after'] = places_after
+        # metrics['proto_place_diff'] = [p1 - p2 for p1, p2 in zip(places_after, places_before)]
 
-        metrics['proto_act_before'] = acts_before
-        metrics['proto_act_after'] = acts_after
-        metrics['proto_act_diff'] = [a1 - a2 for a1, a2 in zip(acts_after, acts_before)]
+        # metrics['proto_act_before'] = acts_before
+        # metrics['proto_act_after'] = acts_after
+        # metrics['proto_act_diff'] = [a1 - a2 for a1, a2 in zip(acts_after, acts_before)]
 
     return metrics
 
@@ -150,6 +150,9 @@ def run_adversarial_attack_on_prototypes(args):
             transforms.ToTensor(),
             normalize,
         ]))
+
+    np.random.seed(20230527)
+
     if args.n_samples != -1:
         random_idx = np.random.choice(np.arange(len(test_dataset)), replace=False, size=args.n_samples)
     else:
@@ -158,7 +161,6 @@ def run_adversarial_attack_on_prototypes(args):
     subset_test_dataset = Subset(test_dataset, random_idx)
     setattr(subset_test_dataset, 'samples', [test_dataset.samples[i] for i in random_idx])
     test_dataset = subset_test_dataset
-
 
     metrics_mean, metrics_all = {}, {}
     for ch_path, model_key, model_name, proto_pool_arch in zip(args.model_checkpoints, args.model_keys, args.model_names, args.proto_pool_arch):
@@ -197,6 +199,8 @@ def run_adversarial_attack_on_prototypes(args):
                 model = torch.load(ch_path).cuda()
             else:
                 model = torch.load(ch_path, map_location=torch.device('cpu'))
+            if args.focal_sim:
+                setattr(model, 'focal_sim', True)
 
         model_output_dir = os.path.join(experiment_output_dir, model_key)
         # output_adv_img_dir_summaries = os.path.join(model_output_dir, 'adversarial_images_summaries')
@@ -230,6 +234,7 @@ def run_adversarial_attack_on_prototypes(args):
                 epsilon=args.epsilon,
                 epsilon_iter=args.epsilon_iter,
                 nb_iter=args.nb_iter,
+                focal_sim=args.focal_sim or is_proto_pool
             )
 
             n_samples += len(batch_result['filenames'])
@@ -306,7 +311,7 @@ def run_adversarial_attack_on_prototypes(args):
                 # plt.close()
 
                 # save some cherry-picked samples where activation change is the biggest
-                top_proto_act_diff = metrics['top_proto_act_diff'][-1]
+                top_proto_act_diff = metrics['PAC'][-1]
                 if len(top_k_examples) < args.top_k_save or any(k > top_proto_act_diff for k in top_k_examples_diffs):
                     if len(top_k_examples) >= args.top_k_save:
                         argmax = np.argmax(top_k_examples_diffs)
@@ -340,8 +345,9 @@ def run_adversarial_attack_on_prototypes(args):
             json.dump(metrics, f)
 
         mean_metrics = {k: float(np.mean(v)) for k, v in metrics.items()}
-        mean_metrics['accuracy_before'] = float(n_correct_before / n_samples * 100)
-        mean_metrics['accuracy_after'] = float(n_correct_after / n_samples * 100)
+        mean_metrics['Acc_before'] = float(n_correct_before / n_samples * 100)
+        mean_metrics['Acc_after'] = float(n_correct_after / n_samples * 100)
+        mean_metrics['AC'] = mean_metrics['Acc_before'] - mean_metrics['Acc_after']
         with open(os.path.join(model_output_dir, 'metrics_mean.json'), 'w') as f:
             json.dump(mean_metrics, f, indent=2)
 
@@ -404,5 +410,8 @@ if __name__ == '__main__':
                         help='Maximum perturbation of the adversarial attack within one iteration')
     parser.add_argument('--nb_iter', type=int, default=40,
                         help='Number of iterations of the adversarial attack')
+
+    parser.add_argument("--focal_sim", type=bool, action=argparse.BooleanOptionalAction)
+    parser.set_defaults(focal_sim=False)
 
     run_adversarial_attack_on_prototypes(parser.parse_args())

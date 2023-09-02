@@ -22,6 +22,10 @@ parser.add_argument('-model', nargs=1, type=str)
 parser.add_argument('--masking_type', type=str, default='none')
 parser.add_argument('--quantized_mask', type=bool, default=False)
 parser.add_argument('--sim_diff_function', type=str, default='l1')
+parser.add_argument("--mixup", type=bool, action=argparse.BooleanOptionalAction)
+parser.set_defaults(mixup=False)
+parser.add_argument("--focal_sim", type=bool, action=argparse.BooleanOptionalAction)
+parser.set_defaults(focal_sim=False)
 
 args = parser.parse_args()
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpuid[0]
@@ -48,6 +52,8 @@ shutil.copy(src=os.path.join(os.getcwd(), __file__), dst=model_dir)
 log, logclose = create_logger(log_filename=os.path.join(model_dir, 'prune.log'))
 
 ppnet = torch.load(os.path.join(original_model_dir, original_model_name))
+if args.focal_sim:
+    setattr(ppnet, 'focal_sim', True)
 ppnet = ppnet.cuda()
 ppnet_multi = torch.nn.DataParallel(ppnet)
 class_specific = True
@@ -156,7 +162,8 @@ if optimize_last_layer:
         train_accu, _, metrics = tnt.train(model=ppnet_multi, dataloader=train_loader, optimizer=last_layer_optimizer,
                                            class_specific=class_specific, coefs=coefs, log=log,
                                            masking_type=args.masking_type, neptune_run=neptune_run,
-                                           quantized_mask=args.quantized_mask, sim_diff_function=args.sim_diff_function)
+                                           quantized_mask=args.quantized_mask, sim_diff_function=args.sim_diff_function,
+                                           mixup=args.mixup)
         if neptune_run is not None:
             neptune_run["train/epoch/accuracy"].append(train_accu)
             neptune_run["train/epoch/stage"].append(3.0)

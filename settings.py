@@ -1,6 +1,6 @@
 import os
 
-base_architecture = 'resnet34'
+base_architecture = os.environ.get('BASE_ARCHITECTURE', 'resnet34')
 img_size = 224
 prototype_shape = (2000, 128, 1, 1)
 num_classes = 200

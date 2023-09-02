@@ -99,7 +99,7 @@ class DenseNet_features(nn.Module):
     """
 
     def __init__(self, growth_rate=32, block_config=(6, 12, 24, 16),
-                 num_init_features=64, bn_size=4, drop_rate=0, num_classes=1000):
+                 num_init_features=64, bn_size=4, drop_rate=0, num_classes=1000, **kwargs):
 
         super(DenseNet_features, self).__init__()
         self.kernel_sizes = []

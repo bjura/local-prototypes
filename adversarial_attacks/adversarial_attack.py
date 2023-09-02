@@ -50,6 +50,7 @@ def attack_images_target_class_prototypes(
         activations: np.ndarray,
         attack_type: str,
         cls: np.ndarray,
+        focal_sim: bool,
         epsilon: float = 0.1,
         epsilon_iter: float = 0.01,
         nb_iter: int = 20,
@@ -94,8 +95,8 @@ def attack_images_target_class_prototypes(
         sample_img = img[sample_i].unsqueeze(0)
         sample_proto_nums = proto_nums[sample_i]
         sample_mask = mask[sample_i].unsqueeze(0)
-        wrapper = PPNetAdversarialWrapper(model=model, model_name=model_name, img=sample_img, proto_nums=sample_proto_nums, mask=sample_mask)
-
+        wrapper = PPNetAdversarialWrapper(model=model, model_name=model_name, img=sample_img, proto_nums=sample_proto_nums, mask=sample_mask,
+                                          focal_sim=focal_sim)
         sample_modified = projected_gradient_descent(
             model_fn=wrapper,
             x=sample_img,
@@ -105,8 +106,8 @@ def attack_images_target_class_prototypes(
             norm=np.inf,
         )
         img_modified.append(sample_modified)
-        activations_before.append(wrapper.initial_activation)
-        activations_after.append(wrapper.final_activation)
+        activations_before.append(np.clip(wrapper.initial_activation, a_min=0.0, a_max=None))
+        activations_after.append(np.clip(wrapper.final_activation, a_min=0.0, a_max=None))
 
     img_modified = torch.cat(img_modified, dim=0)
     img_modified = img_modified * mask + img * (1 - mask)

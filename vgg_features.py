@@ -23,7 +23,7 @@ cfg = {
 
 class VGG_features(nn.Module):
 
-    def __init__(self, cfg, batch_norm=False, init_weights=True):
+    def __init__(self, cfg, batch_norm=False, init_weights=True, **kwargs):
         super(VGG_features, self).__init__()
 
         self.batch_norm = batch_norm

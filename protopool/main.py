@@ -92,13 +92,17 @@ def learn_model(opt: Optional[List[str]]) -> None:
     parser.add_argument('--pp_ortho', action='store_true')
     parser.add_argument('--pp_gumbel', action='store_true')
 
-    parser.add_argument('--prog_bar', action='store_true')
     parser.add_argument('--num_workers', default=8, type=int)
-    parser.add_argument('--high_act_loss', action='store_true')
-    parser.add_argument('--quantized_mask', action='store_true')
     parser.add_argument('--sim_diff_weight', default=1.0, type=float)
     parser.add_argument('--sim_diff_function', default='l2', type=str)
-    parser.add_argument('--augmentations', action='store_true')
+    parser.add_argument("--prog_bar", type=bool, action=argparse.BooleanOptionalAction)
+    parser.set_defaults(prog_bar=False)
+    parser.add_argument("--augmentations", type=bool, action=argparse.BooleanOptionalAction)
+    parser.set_defaults(augmentations=False)
+    parser.add_argument("--high_act_loss", type=bool, action=argparse.BooleanOptionalAction)
+    parser.set_defaults(high_act_loss=False)
+    parser.add_argument("--quantized_mask", type=bool, action=argparse.BooleanOptionalAction)
+    parser.set_defaults(quantized_mask=True)
 
     if opt is None:
         args, unknown = parser.parse_known_args()

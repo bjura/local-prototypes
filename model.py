@@ -35,7 +35,9 @@ class PPNet(nn.Module):
                  proto_layer_rf_info, num_classes, init_weights=True,
                  prototype_activation_function='log',
                  add_on_layers_type='bottleneck',
-                 return_prev_layer=False):
+                 return_prev_layer=False,
+                 mixup: bool = False,
+                 focal_sim: bool = False):
 
         super(PPNet, self).__init__()
         self.img_size = img_size
@@ -44,6 +46,8 @@ class PPNet(nn.Module):
         self.num_classes = num_classes
         self.return_prev_layer = return_prev_layer
         self.epsilon = 1e-4
+        self.mixup = mixup
+        self.focal_sim = focal_sim
         
         # prototype_activation_function could be 'log', 'linear',
         # or a generic function that converts distance to similarity score
@@ -217,6 +221,15 @@ class PPNet(nn.Module):
                                                    distances.size()[3]))
         min_distances = min_distances.view(-1, self.num_prototypes)
         prototype_activations = self.distance_2_similarity(min_distances)
+
+        if hasattr(self, 'focal_sim') and self.focal_sim:
+            avg_dist = F.avg_pool2d(distances, kernel_size=(distances.size()[2],
+                                                            distances.size()[3])).squeeze()  # [b, p]
+            if avg_dist.ndim == 1:
+                avg_dist = avg_dist.unsqueeze(0)
+
+            prototype_activations = prototype_activations - self.distance_2_similarity(avg_dist)
+
         logits = self.last_layer(prototype_activations)
 
         if return_all_similarities:
@@ -312,7 +325,9 @@ def construct_PPNet(base_architecture, pretrained=True, img_size=224,
                     prototype_shape=(2000, 512, 1, 1), num_classes=200,
                     prototype_activation_function='log',
                     add_on_layers_type='bottleneck',
-                    last_layer_num: int = -1):
+                    last_layer_num: int = -1,
+                    mixup: bool = False,
+                    focal_sim: bool = False):
     features = base_architecture_to_features[base_architecture](pretrained=pretrained, last_layer_num=last_layer_num,
                                                                 return_prev_layer=use_last_two_blocks)
     layer_filter_sizes, layer_strides, layer_paddings = features.conv_info()
@@ -331,5 +346,8 @@ def construct_PPNet(base_architecture, pretrained=True, img_size=224,
                  init_weights=True,
                  prototype_activation_function=prototype_activation_function,
                  add_on_layers_type=add_on_layers_type,
-                 return_prev_layer=use_last_two_blocks)
+                 return_prev_layer=use_last_two_blocks,
+                 mixup=mixup,
+                 focal_sim=focal_sim,
+                 )
 

@@ -1,6 +1,7 @@
 import os
 
 import torch
+import numpy as np
 from torch import nn
 from torch.nn.functional import gumbel_softmax
 import torch.nn.functional as F
@@ -46,26 +47,42 @@ def run_model_on_batch(
             prototype_activations = x.flatten(start_dim=1)
         else:
             raise NotImplementedError('Not implemented for proto_pool')
-        patch_activations = model.distance_2_similarity(distances).cpu().detach().numpy()
-        predictions = model.last_layer(prototype_activations)
-    elif model_name == 'ppnet':
-        min_distances = -nn.functional.max_pool2d(-distances,
-                                                  kernel_size=(distances.size()[2],
-                                                               distances.size()[3]))
-        min_distances = min_distances.view(-1, model.num_prototypes)
-        prototype_activations = model.distance_2_similarity(min_distances)
-        patch_activations = model.distance_2_similarity(distances).cpu().detach().numpy()
-        predictions = model.last_layer(prototype_activations)
-    elif model_name == 'tesnet':
-        patch_activations = (-distances).cpu().detach().numpy()
-        prototype_activations = model.global_max_pooling(-distances)
-        predictions = model.last_layer(prototype_activations)
-    elif model_name == 'prototree':
-        patch_activations = torch.exp(-distances).cpu().detach().numpy()
 
-    predicted_cls = torch.argmax(predictions, dim=-1)
+        sim = model.distance_2_similarity(distances)  # [b, p]
+        avg_sim = model.distance_2_similarity(avg_dist)  # [b, p]
 
-    return predicted_cls.cpu().detach().numpy(), patch_activations
+        patch_activations = sim - avg_sim.unsqueeze(-1).unsqueeze(-1)
+        patch_activations = patch_activations.cpu().detach().numpy()
+        predictions = model.last_layer(prototype_activations)
+    else:
+        if model_name == 'ppnet':
+            min_distances = -nn.functional.max_pool2d(-distances,
+                                                      kernel_size=(distances.size()[2],
+                                                                   distances.size()[3]))
+            min_distances = min_distances.view(-1, model.num_prototypes)
+            prototype_activations = model.distance_2_similarity(min_distances)
+            if hasattr(model, 'focal_sim') and model.focal_sim:
+                avg_dist = F.avg_pool2d(distances, kernel_size=(distances.size()[2],
+                                                                distances.size()[3])).squeeze()  # [b, p]
+                if avg_dist.ndim == 1:
+                    avg_dist = avg_dist.unsqueeze(0)
+                avg_dist = avg_dist.unsqueeze(-1).unsqueeze(-1)
+                avg_sim = model.distance_2_similarity(avg_dist)
+
+                prototype_activations = prototype_activations - avg_sim
+                patch_activations = model.distance_2_similarity(distances) - avg_sim
+                patch_activations = patch_activations.cpu().detach().numpy()
+            else:
+                patch_activations = model.distance_2_similarity(distances).cpu().detach().numpy()
+            predictions = model.last_layer(prototype_activations)
+        elif model_name == 'tesnet':
+            patch_activations = (-distances).cpu().detach().numpy()
+            prototype_activations = model.global_max_pooling(-distances)
+            predictions = model.last_layer(prototype_activations)
+        elif model_name == 'prototree':
+            patch_activations = torch.exp(-distances).cpu().detach().numpy()
+        predicted_cls = torch.argmax(predictions, dim=-1)
+    return predicted_cls.cpu().detach().numpy(), np.clip(patch_activations, a_min=0, a_max=None)
 
 
 def run_model_on_dataset(

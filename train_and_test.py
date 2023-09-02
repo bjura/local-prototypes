@@ -1,4 +1,6 @@
 import time
+from typing import Tuple
+
 import torch
 import numpy as np
 
@@ -6,9 +8,18 @@ from helpers import list_of_distances
 from settings import masking_random_prob, img_size
 
 
+def mixup_data(x: torch.Tensor, y: torch.Tensor, alpha: float = 1.0) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, float]:
+    lam = np.random.beta(alpha, alpha) if alpha > 0 else 1.
+    index = torch.randperm(x.shape[0], dtype=x.dtype, device=x.device).to(torch.long)
+    mixed_x = lam * x + (1 - lam) * x[index, ...]
+    y_a, y_b = y, y[index]
+    return mixed_x, y_a, y_b, lam
+
+
 def _train_or_test(model, dataloader, optimizer=None, class_specific=True, use_l1_mask=True,
                    coefs=None, log=print, masking_type='none', neptune_run=None,
-                   quantized_mask=False, sim_diff_weight=0.0, sim_diff_function='l1'):
+                   quantized_mask=False, sim_diff_weight=0.0, sim_diff_function='l1',
+                   mixup: bool = False):
     '''
     model: the multi-gpu model
     dataloader:
@@ -29,6 +40,9 @@ def _train_or_test(model, dataloader, optimizer=None, class_specific=True, use_l
     for i, (image, label) in enumerate(dataloader):
         input = image.cuda()
         target = label.cuda()
+
+        if mixup:
+            input, targets_a, targets_b, lam = mixup_data(input, target, 0.5)
 
         # torch.enable_grad() has no effect outside of no_grad()
         grad_req = torch.enable_grad() if is_train else torch.no_grad()
@@ -181,7 +195,12 @@ def _train_or_test(model, dataloader, optimizer=None, class_specific=True, use_l
                 l1 = model.module.last_layer.weight.norm(p=1)
 
             # compute loss
-            cross_entropy = torch.nn.functional.cross_entropy(output, target)
+            if mixup:
+                cross_entropy = lam * \
+                                torch.nn.functional.cross_entropy(output, targets_a) + (1 - lam) * \
+                                torch.nn.functional.cross_entropy(output, targets_b)
+            else:
+                cross_entropy = torch.nn.functional.cross_entropy(output, target)
 
             # evaluation statistics
             _, predicted = torch.max(output.data, 1)
@@ -266,13 +285,14 @@ def _train_or_test(model, dataloader, optimizer=None, class_specific=True, use_l
 
 
 def train(model, dataloader, optimizer, class_specific=False, coefs=None, log=print, masking_type='none',
-          neptune_run=None, quantized_mask=False, sim_diff_weight=0.0, sim_diff_function='l1'):
+          neptune_run=None, quantized_mask=False, sim_diff_weight=0.0, sim_diff_function='l1',
+          mixup: bool = True):
     assert (optimizer is not None)
     model.train()
     return _train_or_test(model=model, dataloader=dataloader, optimizer=optimizer,
                           class_specific=class_specific, coefs=coefs, log=log, masking_type=masking_type,
                           neptune_run=neptune_run, quantized_mask=quantized_mask,
-                          sim_diff_function=sim_diff_function, sim_diff_weight=sim_diff_weight)
+                          sim_diff_function=sim_diff_function, sim_diff_weight=sim_diff_weight, mixup=mixup)
 
 
 def test(model, dataloader, class_specific=False, log=print, masking_type='none', neptune_run=None,
